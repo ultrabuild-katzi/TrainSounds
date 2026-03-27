@@ -1,0 +1,6 @@
+{
+  "item.trainsounds.engine_toggle_tool": "Engine Toggle Tool",
+  "message.trainsounds.engine_on": "Engine enabled for carriage %s",
+  "message.trainsounds.engine_off": "Engine disabled for carriage %s"
+}
+

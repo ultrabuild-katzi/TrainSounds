@@ -1,0 +1,11 @@
+{
+  "electric": {
+    "sounds": [
+      {
+        "name": "trainsounds:electric",
+        "stream": true
+      }
+    ]
+  }
+}
+

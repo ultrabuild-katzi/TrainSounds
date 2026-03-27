@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "trainsounds",
+  "version": "${version}",
+  "name": "TrainSounds",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/trainsounds/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-datagen": [
+      "de.ultrabuild.trainsounds.client.TrainsoundsDataGenerator"
+    ],
+    "main": [
+      "de.ultrabuild.trainsounds.Trainsounds"
+    ]
+  },
+  "mixins": [
+    "trainsounds.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
