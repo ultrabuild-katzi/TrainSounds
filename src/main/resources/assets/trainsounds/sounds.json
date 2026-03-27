@@ -3,7 +3,17 @@
     "sounds": [
       {
         "name": "trainsounds:electric",
-        "stream": true
+        "type": "file",
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "diesel": {
+    "sounds": [
+      {
+        "name": "trainsounds:diesel",
+        "type": "file",
+        "attenuation_distance": 32
       }
     ]
   }

@@ -4,8 +4,10 @@
   "package": "de.ultrabuild.trainsounds.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "CarriageContraptionEntityMixin"
   ],
   "client": [
+    "CarriageSoundsMixin"
   ],
   "injectors": {
     "defaultRequire": 1
