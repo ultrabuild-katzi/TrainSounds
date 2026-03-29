@@ -5,6 +5,7 @@ import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.trains.entity.Carriage;
 import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import com.simibubi.create.content.trains.entity.CarriageSounds;
+import de.mrjulsen.paw.blockentity.PantographBlockEntity;
 import de.ultrabuild.trainsounds.logic.EngineToggleCarrier;
 import de.ultrabuild.trainsounds.Trainsounds;
 import net.minecraft.sound.SoundCategory;
@@ -24,8 +25,6 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.List;
 
 @Mixin(CarriageSounds.class)
@@ -33,9 +32,6 @@ public abstract class CarriageSoundsMixin {
 
     @Unique
     private static final Logger TRAINSOUNDS_LOGGER = LoggerFactory.getLogger("TrainSounds/Debug");
-
-    @Unique
-    private static final String PAW_PANTOGRAPH_BE_CLASS = "de.mrjulsen.paw.blockentity.PantographBlockEntity";
 
     @Shadow
     CarriageContraptionEntity entity;
@@ -108,7 +104,7 @@ public abstract class CarriageSoundsMixin {
                             ", volume=" + String.format("%.4f", boostedVolume) +
                             ", pitch=" + String.format("%.4f", dynamicPitch)
             );
-            
+
             world.playSound(
                     soundLocation.x,
                     soundLocation.y,
@@ -119,7 +115,7 @@ public abstract class CarriageSoundsMixin {
                     dynamicPitch,
                     fade
             );
-            
+
             // When completely stopped, also play an idle hum
             if (speedPerTick < 0.001) {
                 world.playSound(
@@ -265,14 +261,12 @@ public abstract class CarriageSoundsMixin {
         trainsounds$debug("pantograph_check", "total_block_entities=" + contraption.presentBlockEntities.size());
 
         for (var blockEntity : contraption.presentBlockEntities.values()) {
-            String className = blockEntity.getClass().getName();
-            trainsounds$debug("pantograph_check", "found_block_entity=" + className);
 
-            if (!className.equals(PAW_PANTOGRAPH_BE_CLASS)) {
+            if (!(blockEntity instanceof PantographBlockEntity pantographBlockEntity)) {
                 continue;
             }
 
-            boolean isExpanded = trainsounds$isPantographExpanded(blockEntity);
+            boolean isExpanded = pantographBlockEntity.isExpanded();
             trainsounds$debug("pantograph_check", "paw_pantograph_expanded=" + isExpanded);
 
             if (isExpanded) {
@@ -282,21 +276,6 @@ public abstract class CarriageSoundsMixin {
 
         trainsounds$debug("pantograph_check", "no_expanded_pantographs_found");
         return false;
-    }
-
-    @Unique
-    private boolean trainsounds$isPantographExpanded(Object pantographBlockEntity) {
-        try {
-            // In PAW, expanded means raised and currently in wire-contact state.
-            Method isExpanded = pantographBlockEntity.getClass().getMethod("isExpanded");
-            Object result = isExpanded.invoke(pantographBlockEntity);
-            boolean expanded = result instanceof Boolean b && b;
-            trainsounds$debug("pantograph_expanded_check", "result=" + expanded);
-            return expanded;
-        } catch (ReflectiveOperationException e) {
-            trainsounds$debug("pantograph_expanded_check", "reflection_failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            return false;
-        }
     }
 
     @Unique
@@ -375,95 +354,15 @@ public abstract class CarriageSoundsMixin {
     private double trainsounds$getTrainSpeedPerTick(CarriageContraptionEntity carriageEntity) {
         Carriage carriage = carriageEntity.getCarriage();
         if (carriage != null && carriage.train != null) {
-            Double speedFromTrain = trainsounds$extractTrainSpeed(carriage.train);
-            if (speedFromTrain != null && Double.isFinite(speedFromTrain)) {
-                double speed = Math.abs(speedFromTrain);
-                trainsounds$debug("speed_source", "source=train_reflection, speed=" + String.format("%.4f", speed));
-                return speed;
-            }
+            double speed = Math.abs(carriage.train.speed);
+            trainsounds$debug("speed_source", "source=train_reflection, speed=" + String.format("%.4f", speed));
+            return speed;
+
         }
 
         double fallbackSpeed = carriageEntity.getPos().subtract(carriageEntity.getPrevPositionVec()).length();
         trainsounds$debug("speed_source", "source=entity_delta_fallback, speed=" + String.format("%.4f", fallbackSpeed));
         return fallbackSpeed;
-    }
-
-    @Unique
-    private Double trainsounds$extractTrainSpeed(Object train) {
-        Double byMethod = trainsounds$tryReadMethod(train, "speed");
-        if (byMethod != null) {
-            return byMethod;
-        }
-
-        byMethod = trainsounds$tryReadMethod(train, "getSpeed");
-        if (byMethod != null) {
-            return byMethod;
-        }
-
-        byMethod = trainsounds$tryReadMethod(train, "getCurrentSpeed");
-        if (byMethod != null) {
-            return byMethod;
-        }
-
-        Double byField = trainsounds$tryReadField(train, "speed");
-        if (byField != null) {
-            return byField;
-        }
-
-        trainsounds$debug("speed_source", "train_reflection_unresolved");
-        return null;
-    }
-
-    @Unique
-    private Double trainsounds$tryReadMethod(Object target, String methodName) {
-        Class<?> current = target.getClass();
-        while (current != null) {
-            try {
-                Method method = current.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                Object value = method.invoke(target);
-                if (value instanceof Number number && Double.isFinite(number.doubleValue())) {
-                    double result = number.doubleValue();
-                    trainsounds$debug("speed_source", "method=" + methodName + ", owner=" + current.getSimpleName() + ", speed=" + String.format("%.4f", result));
-                    return result;
-                }
-            } catch (NoSuchMethodException ignored) {
-                // Continue in superclass.
-            } catch (ReflectiveOperationException | RuntimeException exception) {
-                trainsounds$debug("speed_source", "method_failed=" + methodName + ", error=" + exception.getClass().getSimpleName());
-                return null;
-            }
-
-            current = current.getSuperclass();
-        }
-
-        return null;
-    }
-
-    @Unique
-    private Double trainsounds$tryReadField(Object target, String fieldName) {
-        Class<?> current = target.getClass();
-        while (current != null) {
-            try {
-                Field field = current.getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object value = field.get(target);
-                if (value instanceof Number number && Double.isFinite(number.doubleValue())) {
-                    double result = number.doubleValue();
-                    trainsounds$debug("speed_source", "field=" + fieldName + ", owner=" + current.getSimpleName() + ", speed=" + String.format("%.4f", result));
-                    return result;
-                }
-            } catch (NoSuchFieldException ignored) {
-                // Continue in superclass.
-            } catch (ReflectiveOperationException | RuntimeException exception) {
-                trainsounds$debug("speed_source", "field_failed=" + fieldName + ", error=" + exception.getClass().getSimpleName());
-                return null;
-            }
-
-            current = current.getSuperclass();
-        }
-
-        return null;
     }
 }
 
