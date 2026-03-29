@@ -4,7 +4,7 @@
       {
         "name": "trainsounds:electric",
         "type": "file",
-        "attenuation_distance": 32
+        "attenuation_distance": 128
       }
     ]
   },
@@ -13,7 +13,7 @@
       {
         "name": "trainsounds:diesel",
         "type": "file",
-        "attenuation_distance": 32
+        "attenuation_distance": 128
       }
     ]
   }
