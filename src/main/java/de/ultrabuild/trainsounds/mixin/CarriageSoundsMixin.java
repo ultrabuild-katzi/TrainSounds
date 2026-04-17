@@ -7,6 +7,7 @@ import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import com.simibubi.create.content.trains.entity.CarriageSounds;
 import de.mrjulsen.paw.blockentity.PantographBlockEntity;
 import de.ultrabuild.trainsounds.Trainsounds;
+import de.ultrabuild.trainsounds.client.config.TrainSoundVolumeConfigManager;
 import de.ultrabuild.trainsounds.logic.EngineToggleCarrier;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
@@ -39,6 +40,10 @@ public abstract class CarriageSoundsMixin {
             index = 2
     )
     private SoundEvent trainsounds$muteMinecartLoop(SoundEvent original) {
+        if (!trainsounds$shouldUseCustomEngineSound(entity)) {
+            return original;
+        }
+
         return SoundEvents.INTENTIONALLY_EMPTY;
     }
 
@@ -57,7 +62,7 @@ public abstract class CarriageSoundsMixin {
             float pitch,
             boolean fade
     ) {
-        if (soundEntry == AllSoundEvents.STEAM) {
+        if (soundEntry == AllSoundEvents.STEAM && trainsounds$shouldUseCustomEngineSound(entity)) {
             return;
         }
 
@@ -80,7 +85,21 @@ public abstract class CarriageSoundsMixin {
             return;
         }
 
+        if (!trainsounds$shouldUseCustomEngineSound(carriageEntity)) {
+            return;
+        }
+
         SoundEvent selectedSound = trainsounds$selectEngineSound(carriageEntity);
+        if (selectedSound == null) {
+            return;
+        }
+
+        String channel = trainsounds$resolveChannel(selectedSound);
+        float userVolume = TrainSoundVolumeConfigManager.getVolumeMultiplier(channel);
+        if (userVolume <= 0.0f) {
+            return;
+        }
+
         if (selectedSound == Trainsounds.ELECTRIC_SOUND_EVENT && !trainsounds$hasLivePantographOnTrain(carriageEntity)) {
             return;
         }
@@ -88,7 +107,7 @@ public abstract class CarriageSoundsMixin {
         Vec3d soundLocation = carriageEntity.getPos();
         double speedPerTick = trainsounds$getTrainSpeedPerTick(carriageEntity);
         float basePitch = trainsounds$dynamicPitchFromTrainSpeed(carriageEntity, 1.0f);
-        float baseVolume = MathHelper.clamp((float) (speedPerTick * 18.0f), 0.20f, 2.5f);
+        float baseVolume = MathHelper.clamp((float) (speedPerTick * 18.0f), 0.20f, 2.5f) * userVolume;
 
         long pulseTime = world.getTime();
         int phaseOffset = Math.floorMod(carriageEntity.getId(), 7);
@@ -129,7 +148,7 @@ public abstract class CarriageSoundsMixin {
                     soundLocation.z,
                     selectedSound,
                     SoundCategory.NEUTRAL,
-                    0.9f,
+                    0.9f * userVolume,
                     0.45f,
                     false
             );
@@ -199,9 +218,21 @@ public abstract class CarriageSoundsMixin {
     }
 
     @Unique
+    private boolean trainsounds$shouldUseCustomEngineSound(CarriageContraptionEntity carriageEntity) {
+        if (carriageEntity == null || carriageEntity.getCarriage() == null || carriageEntity.getCarriage().train == null
+                || carriageEntity.getCarriage().train.icon == null) {
+            return false;
+        }
+
+        String icon = carriageEntity.getCarriage().train.icon.getId().getPath();
+        return "electric".equals(icon) || "modern".equals(icon);
+    }
+
+    @Unique
     private SoundEvent trainsounds$selectEngineSound(CarriageContraptionEntity carriageEntity) {
-        if (carriageEntity.getCarriage() == null || carriageEntity.getCarriage().train == null || carriageEntity.getCarriage().train.icon == null) {
-            return AllSoundEvents.STEAM.getMainEvent();
+        if (carriageEntity == null || carriageEntity.getCarriage() == null || carriageEntity.getCarriage().train == null
+                || carriageEntity.getCarriage().train.icon == null) {
+            return null;
         }
 
         String icon = carriageEntity.getCarriage().train.icon.getId().getPath();
@@ -209,8 +240,21 @@ public abstract class CarriageSoundsMixin {
         return switch (icon) {
             case "electric" -> Trainsounds.ELECTRIC_SOUND_EVENT;
             case "modern" -> Trainsounds.DIESEL_SOUND_EVENT;
-            default -> AllSoundEvents.STEAM.getMainEvent();
+            default -> null;
         };
+    }
+
+    @Unique
+    private String trainsounds$resolveChannel(SoundEvent selectedSound) {
+        if (selectedSound == Trainsounds.DIESEL_SOUND_EVENT) {
+            return "diesel";
+        }
+
+        if (selectedSound == Trainsounds.ELECTRIC_SOUND_EVENT) {
+            return "electric";
+        }
+
+        return "aux";
     }
 
     @Unique
@@ -229,11 +273,12 @@ public abstract class CarriageSoundsMixin {
 
     @Unique
     private double trainsounds$getTrainSpeedPerTick(CarriageContraptionEntity carriageEntity) {
+        double positionDelta = carriageEntity.getPos().subtract(carriageEntity.getPrevPositionVec()).length();
         Carriage carriage = carriageEntity.getCarriage();
         if (carriage != null && carriage.train != null) {
-            return Math.abs(carriage.train.speed);
+            return Math.max(Math.abs(carriage.train.speed), positionDelta);
         }
 
-        return carriageEntity.getPos().subtract(carriageEntity.getPrevPositionVec()).length();
+        return positionDelta;
     }
 }

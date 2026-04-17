@@ -10,6 +10,9 @@
   "icon": "assets/trainsounds/icon.png",
   "environment": "*",
   "entrypoints": {
+    "client": [
+      "de.ultrabuild.trainsounds.client.TrainsoundsClient"
+    ],
     "fabric-datagen": [
       "de.ultrabuild.trainsounds.client.TrainsoundsDataGenerator"
     ],

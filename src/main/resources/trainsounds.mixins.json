@@ -7,7 +7,9 @@
     "CarriageContraptionEntityMixin"
   ],
   "client": [
-    "CarriageSoundsMixin"
+    "CarriageSoundsMixin",
+    "client.ScreenAccessor",
+    "client.SoundOptionsScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
