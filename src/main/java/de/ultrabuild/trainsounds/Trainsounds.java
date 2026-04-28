@@ -2,7 +2,6 @@ package de.ultrabuild.trainsounds;
 
 import de.ultrabuild.trainsounds.item.EngineToggleItem;
 import de.ultrabuild.trainsounds.logic.TrainEngineToggleHandler;
-import de.ultrabuild.trainsounds.network.TrainSoundsNetworking;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
@@ -30,6 +29,5 @@ public class Trainsounds implements ModInitializer {
         Registry.register(Registries.ITEM, ENGINE_TOGGLE_ITEM_ID, ENGINE_TOGGLE_ITEM);
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> entries.add(ENGINE_TOGGLE_ITEM));
         TrainEngineToggleHandler.register();
-        TrainSoundsNetworking.register();
     }
 }
