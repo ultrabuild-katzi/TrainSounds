@@ -8,5 +8,6 @@ public class TrainsoundsClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         TrainSoundVolumeConfigManager.ensureLoaded();
+        TrainSoundsClientHandler.register();
     }
 }

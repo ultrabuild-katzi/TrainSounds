@@ -59,24 +59,20 @@ public final class TrainEngineToggleHandler {
             return ActionResult.PASS;
         }
 
-        // Do not consume on client, so server receives the interaction and can toggle persistent state.
+        // Pass to client to open GUI
         if (world.isClient) {
             logBoundary("FINISH", "use_entity", player, world, "result=PASS, reason=client_side");
             return ActionResult.PASS;
         }
 
-        if (isDuplicateToggle(player, world, carriageEntity, "use_entity")) {
-            logBoundary("FINISH", "use_entity", player, world, "result=CONSUME, reason=duplicate_tick_target");
-            return ActionResult.CONSUME;
-        }
-
-        toggleCarriageEngine(player, carriageEntity, carrier);
+        // On server side, just consume but don't do anything
+        // The client will handle opening the GUI
         logBoundary(
                 "FINISH",
                 "use_entity",
                 player,
                 world,
-                "result=CONSUME, toggled_entity=" + carriageEntity.getUuid() + ", carriage_index=" + carriageEntity.carriageIndex
+                "result=CONSUME (GUI opened on client), entity=" + carriageEntity.getUuid() + ", carriage_index=" + carriageEntity.carriageIndex
         );
         return ActionResult.CONSUME;
     }
@@ -112,13 +108,17 @@ public final class TrainEngineToggleHandler {
             return TypedActionResult.consume(stack);
         }
 
-        toggleCarriageEngine(player, target, carrier);
+        // Send packet to client to open GUI
+        if (player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {
+            de.ultrabuild.trainsounds.network.TrainSoundsNetworking.sendOpenCarriageGuiPacket(serverPlayer, target);
+        }
+
         logBoundary(
                 "FINISH",
                 "use_item",
                 player,
                 world,
-                "result=CONSUME, toggled_entity=" + target.getUuid() + ", carriage_index=" + target.carriageIndex
+                "result=CONSUME (sent GUI open packet), entity=" + target.getUuid() + ", carriage_index=" + target.carriageIndex
         );
         return TypedActionResult.consume(stack);
     }
