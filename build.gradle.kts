@@ -33,8 +33,8 @@ fabricApi {
 repositories {
     maven { url = uri("https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1") }
     maven { // Ponder, Flywheel//
-        name = "createmod maven"
-        url = uri("https://maven.createmod.net/")
+        name= "createmod maven"
+        url= uri("https://maven.createmod.net/")
     }
     maven {
         name = ("GeckoLib")
@@ -91,17 +91,11 @@ repositories {
         mappings("net.fabricmc:yarn:$yarnMappings:v2")
         modImplementation( "software.bernie.geckolib:geckolib-fabric-${minecraftVersion}:${geckolib_version}")
         modImplementation("net.fabricmc:fabric-loader:$loaderVersion")
-        modImplementation(
-            "com.simibubi.create:create-fabric-${project.property("minecraft_version")}:${
-                project.property(
-                    "create_fabric_version"
-                )
-            }+mc${project.property("minecraft_version")}"
-        )
+        modImplementation("com.simibubi.create:create-fabric:6.0.8.0+build.1734-mc1.20.1")
 
         modRuntimeOnly("me.djtheredstoner:DevAuth-fabric:1.2.1")
         modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricVersion")
-        modImplementation(files("lib/pantographsandwires-fabric-1.20.1-beta-0.1.1.jar"))
+        modImplementation(files("lib/pantographsandwires-fabric-1.20.1-alpha-0.2.0-1-C6.jar"))
     }
 
     tasks.named<ProcessResources>("processResources") {

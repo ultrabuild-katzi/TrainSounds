@@ -12,6 +12,7 @@ import de.ultrabuild.trainsounds.logic.EngineToggleCarrier;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -180,11 +181,12 @@ public abstract class CarriageSoundsMixin {
     @Unique
     private boolean trainsounds$hasLivePantographContact(CarriageContraptionEntity carriageEntity) {
         Contraption contraption = carriageEntity.getContraption();
-        if (contraption == null || contraption.presentBlockEntities == null || contraption.presentBlockEntities.isEmpty()) {
+        if (contraption == null || contraption.getBlocks() == null || contraption.getBlocks().isEmpty()) {
             return false;
         }
 
-        for (var blockEntity : contraption.presentBlockEntities.values()) {
+        for (BlockPos localPos : contraption.getBlocks().keySet()) {
+            var blockEntity = contraption.getBlockEntityClientSide(localPos);
             if (blockEntity instanceof PantographBlockEntity pantographBlockEntity && pantographBlockEntity.isExpanded()) {
                 return true;
             }
