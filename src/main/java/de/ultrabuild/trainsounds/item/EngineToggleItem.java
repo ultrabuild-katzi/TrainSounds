@@ -1,11 +1,10 @@
 package de.ultrabuild.trainsounds.item;
 
-import net.minecraft.item.Item;
+import net.minecraft.world.item.Item;
 
 public class EngineToggleItem extends Item {
 
-    public EngineToggleItem(Settings settings) {
-        super(settings);
+    public EngineToggleItem(Properties properties) {
+        super(properties);
     }
 }
-

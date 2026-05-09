@@ -1,12 +1,17 @@
 package de.ultrabuild.trainsounds.client;
 
-import net.fabricmc.fabric.api.datagen.v1.DataGeneratorEntrypoint;
-import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
+import de.ultrabuild.trainsounds.Trainsounds;
+import net.minecraft.data.DataGenerator;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.data.event.GatherDataEvent;
 
-public class TrainsoundsDataGenerator implements DataGeneratorEntrypoint {
+@EventBusSubscriber(modid = Trainsounds.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
+public class TrainsoundsDataGenerator {
 
-    @Override
-    public void onInitializeDataGenerator(FabricDataGenerator fabricDataGenerator) {
-        FabricDataGenerator.Pack pack = fabricDataGenerator.createPack();
+    @SubscribeEvent
+    public static void gatherData(GatherDataEvent event) {
+        DataGenerator generator = event.getGenerator();
+        // Pack creation and datagen registration go here
     }
 }

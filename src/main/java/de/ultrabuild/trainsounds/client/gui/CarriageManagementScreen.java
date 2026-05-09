@@ -4,30 +4,25 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import de.ultrabuild.trainsounds.logic.EngineToggleCarrier;
-import de.ultrabuild.trainsounds.network.TrainSoundsNetworking;
 import de.ultrabuild.trainsounds.network.packet.ToggleCarriageEngineC2SPacket;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.render.DiffuseLighting;
-import net.minecraft.client.render.entity.EntityRenderDispatcher;
-import net.minecraft.structure.StructureTemplate;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.neoforged.neoforge.network.PacketDistributor;
+import com.mojang.math.Axis;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@Environment(EnvType.CLIENT)
 public class CarriageManagementScreen extends Screen {
 
     private static final int BLUEPRINT_COLOR = 0xFF4A90E2;
@@ -36,9 +31,9 @@ public class CarriageManagementScreen extends Screen {
     private final Screen parent;
     private final List<CarriageContraptionEntity> carriages;
     private int currentCarriageIndex = 0;
-    private ButtonWidget prevButton;
-    private ButtonWidget nextButton;
-    private ButtonWidget toggleButton;
+    private Button prevButton;
+    private Button nextButton;
+    private Button toggleButton;
 
     private int panelLeft;
     private int panelRight;
@@ -54,7 +49,7 @@ public class CarriageManagementScreen extends Screen {
     private double lastMouseY;
 
     public CarriageManagementScreen(Screen parent, List<CarriageContraptionEntity> carriages, int startIndex) {
-        super(Text.literal("TrainSounds"));
+        super(Component.literal("TrainSounds"));
         this.parent = parent;
         this.carriages = new ArrayList<>(carriages);
         this.currentCarriageIndex = Math.max(0, Math.min(startIndex, this.carriages.size() - 1));
@@ -73,29 +68,29 @@ public class CarriageManagementScreen extends Screen {
         int centerX = (panelLeft + panelRight) / 2;
 
         // Previous button (left arrow)
-        prevButton = this.addDrawableChild(ButtonWidget.builder(Text.literal("◀"), button -> {
+        prevButton = this.addRenderableWidget(Button.builder(Component.literal("◀"), button -> {
             if (currentCarriageIndex > 0) {
                 currentCarriageIndex--;
                 updateToggleButton();
             }
-        }).dimensions(panelLeft + 20, panelBottom - 50, 40, 20).build());
+        }).bounds(panelLeft + 20, panelBottom - 50, 40, 20).build());
 
         // Next button (right arrow)
-        nextButton = this.addDrawableChild(ButtonWidget.builder(Text.literal("▶"), button -> {
+        nextButton = this.addRenderableWidget(Button.builder(Component.literal("▶"), button -> {
             if (currentCarriageIndex < carriages.size() - 1) {
                 currentCarriageIndex++;
                 updateToggleButton();
             }
-        }).dimensions(panelRight - 60, panelBottom - 50, 40, 20).build());
+        }).bounds(panelRight - 60, panelBottom - 50, 40, 20).build());
 
         // Engine toggle button
-        toggleButton = this.addDrawableChild(ButtonWidget.builder(Text.literal("Engine"), button -> {
+        toggleButton = this.addRenderableWidget(Button.builder(Component.literal("Engine"), button -> {
             toggleCurrentCarriageEngine();
-        }).dimensions(centerX - 40, panelBottom - 80, 80, 20).build());
+        }).bounds(centerX - 40, panelBottom - 80, 80, 20).build());
 
         // Close button
-        this.addDrawableChild(ButtonWidget.builder(Text.translatable("gui.done"), button -> this.close())
-                .dimensions(centerX - 50, this.height - 25, 100, 20).build());
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> this.onClose())
+                .bounds(centerX - 50, this.height - 25, 100, 20).build());
 
         updateToggleButton();
     }
@@ -105,8 +100,8 @@ public class CarriageManagementScreen extends Screen {
             CarriageContraptionEntity carriage = carriages.get(currentCarriageIndex);
             if (carriage instanceof EngineToggleCarrier carrier) {
                 boolean isEngineOn = carrier.trainsounds$isEngineBuiltIn();
-                Text text = isEngineOn ? Text.literal("Engine: ON").formatted(Formatting.GREEN)
-                        : Text.literal("Engine: OFF").formatted(Formatting.RED);
+                Component text = isEngineOn ? Component.literal("Engine: ON").withStyle(net.minecraft.ChatFormatting.GREEN)
+                        : Component.literal("Engine: OFF").withStyle(net.minecraft.ChatFormatting.RED);
                 toggleButton.setMessage(text);
             }
         }
@@ -126,14 +121,12 @@ public class CarriageManagementScreen extends Screen {
     }
 
     private void sendTogglePacket(int entityId) {
-        net.minecraft.network.PacketByteBuf buf = new net.minecraft.network.PacketByteBuf(io.netty.buffer.Unpooled.buffer());
         ToggleCarriageEngineC2SPacket packet = new ToggleCarriageEngineC2SPacket(entityId);
-        packet.write(buf);
-        ClientPlayNetworking.send(TrainSoundsNetworking.TOGGLE_ENGINE, buf);
+        PacketDistributor.sendToServer(packet);
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
         // Draw blueprint background
         drawBlueprintBackground(context);
 
@@ -144,8 +137,8 @@ public class CarriageManagementScreen extends Screen {
         drawBlueprintBorder(context, panelLeft, panelTop, panelRight, panelBottom);
 
         // Draw title
-        Text title = Text.literal("TrainSounds").formatted(Formatting.BOLD);
-        context.drawCenteredTextWithShadow(this.textRenderer, title, this.width / 2, 15, 0x4A90E2);
+        Component title = Component.literal("TrainSounds").withStyle(net.minecraft.ChatFormatting.BOLD);
+        context.drawCenteredString(this.font, title, this.width / 2, 15, 0x4A90E2);
 
         // Draw train/carriage info
         if (!carriages.isEmpty()) {
@@ -156,12 +149,12 @@ public class CarriageManagementScreen extends Screen {
             if (currentCarriage.getCarriage() != null && currentCarriage.getCarriage().train != null) {
                 trainName = currentCarriage.getCarriage().train.name.getString();
             }
-            Text trainText = Text.literal(trainName).formatted(Formatting.BOLD);
-            context.drawCenteredTextWithShadow(this.textRenderer, trainText, this.width / 2, panelTop + 10, 0xFFFFFF);
+            Component trainText = Component.literal(trainName).withStyle(net.minecraft.ChatFormatting.BOLD);
+            context.drawCenteredString(this.font, trainText, this.width / 2, panelTop + 10, 0xFFFFFF);
 
             // Carriage counter
-            Text carriageText = Text.literal("Carriage " + (currentCarriageIndex + 1) + " of " + carriages.size());
-            context.drawCenteredTextWithShadow(this.textRenderer, carriageText, this.width / 2, panelBottom - 20, 0xAAAAAA);
+            Component carriageText = Component.literal("Carriage " + (currentCarriageIndex + 1) + " of " + carriages.size());
+            context.drawCenteredString(this.font, carriageText, this.width / 2, panelBottom - 20, 0xAAAAAA);
 
             // Draw 3D carriage model in the center
             int modelX = this.width / 2;
@@ -172,7 +165,7 @@ public class CarriageManagementScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void drawBlueprintBackground(DrawContext context) {
+    private void drawBlueprintBackground(GuiGraphics context) {
         context.fill(0, 0, this.width, this.height, BACKGROUND_COLOR);
 
         // Draw grid pattern
@@ -185,7 +178,7 @@ public class CarriageManagementScreen extends Screen {
         }
     }
 
-    private void drawBlueprintBorder(DrawContext context, int x1, int y1, int x2, int y2) {
+    private void drawBlueprintBorder(GuiGraphics context, int x1, int y1, int x2, int y2) {
         // Draw blueprint-style border
         int borderColor = 0xFF4A90E2;
 
@@ -202,28 +195,28 @@ public class CarriageManagementScreen extends Screen {
         context.fill(x2 - 1, y1, x2, y2, borderColor);              // Right inner
     }
 
-    private void drawCarriageModel(DrawContext context, int x, int y, CarriageContraptionEntity carriage, float delta) {
-        context.getMatrices().push();
-        context.getMatrices().translate(x, y, 300);
+    private void drawCarriageModel(GuiGraphics context, int x, int y, CarriageContraptionEntity carriage, float delta) {
+        context.pose().pushPose();
+        context.pose().translate(x, y, 300);
 
         try {
             // Enable proper lighting and depth testing
-            DiffuseLighting.enableGuiDepthLighting();
+            com.mojang.blaze3d.platform.Lighting.setupFor3DItems();
             RenderSystem.enableDepthTest();
             RenderSystem.enableCull();
             RenderSystem.defaultBlendFunc();
 
-            context.getMatrices().push();
+            context.pose().pushPose();
             
             // Apply scale
-            context.getMatrices().scale(modelScale, -modelScale, modelScale);
+            context.pose().scale(modelScale, -modelScale, modelScale);
 
             // Apply rotation
-            context.getMatrices().multiply(RotationAxis.POSITIVE_X.rotationDegrees(modelRotationX));
-            context.getMatrices().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(modelRotationY));
+            context.pose().mulPose(Axis.XP.rotationDegrees(modelRotationX));
+            context.pose().mulPose(Axis.YP.rotationDegrees(modelRotationY));
             
             // Render the blocks and block entities of the contraption
-            assert this.client != null;
+            assert this.minecraft != null;
             if (carriage.getContraption() != null) {
                 Contraption contraption = carriage.getContraption();
 
@@ -233,65 +226,65 @@ public class CarriageManagementScreen extends Screen {
                     StructureTemplate.StructureBlockInfo info = entry.getValue();
                     BlockState blockState = info.state();
 
-                    context.getMatrices().push();
-                    context.getMatrices().translate(localPos.getX(), localPos.getY(), localPos.getZ());
-                    this.client.getBlockRenderManager().renderBlockAsEntity(blockState, context.getMatrices(), context.getVertexConsumers(),
-                        net.minecraft.client.render.LightmapTextureManager.MAX_LIGHT_COORDINATE,
-                        net.minecraft.client.render.OverlayTexture.DEFAULT_UV);
-                    context.getMatrices().pop();
+                    context.pose().pushPose();
+                    context.pose().translate(localPos.getX(), localPos.getY(), localPos.getZ());
+                    this.minecraft.getBlockRenderer().renderSingleBlock(blockState, context.pose(), context.bufferSource(),
+                        LightTexture.FULL_BRIGHT,
+                        net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+                    context.pose().popPose();
                 }
 
                 // Render block entities
                 for (BlockPos localPos : contraption.getBlocks().keySet()) {
                     BlockEntity blockEntity = contraption.getBlockEntityClientSide(localPos);
                     if (blockEntity != null) {
-                        var renderer = this.client.getBlockEntityRenderDispatcher().get(blockEntity);
+                        var renderer = this.minecraft.getBlockEntityRenderDispatcher().getRenderer(blockEntity);
                         if (renderer != null) {
-                            context.getMatrices().push();
-                            context.getMatrices().translate(localPos.getX(), localPos.getY(), localPos.getZ());
-                            renderer.render(blockEntity, delta, context.getMatrices(), context.getVertexConsumers(),
-                                net.minecraft.client.render.LightmapTextureManager.MAX_LIGHT_COORDINATE,
-                                net.minecraft.client.render.OverlayTexture.DEFAULT_UV);
-                            context.getMatrices().pop();
+                            context.pose().pushPose();
+                            context.pose().translate(localPos.getX(), localPos.getY(), localPos.getZ());
+                            renderer.render(blockEntity, delta, context.pose(), context.bufferSource(),
+                                LightTexture.FULL_BRIGHT,
+                                net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+                            context.pose().popPose();
                         }
                     }
                 }
             }
 
             // Render the entity (this includes bogeys in CarriageContraptionEntity)
-            EntityRenderDispatcher dispatcher = this.client.getEntityRenderDispatcher();
-            dispatcher.render(carriage, 0, 0, 0, 0, delta, context.getMatrices(),
-                context.getVertexConsumers(), net.minecraft.client.render.LightmapTextureManager.MAX_LIGHT_COORDINATE);
+            EntityRenderDispatcher dispatcher = this.minecraft.getEntityRenderDispatcher();
+            dispatcher.render(carriage, 0, 0, 0, 0, delta, context.pose(),
+                context.bufferSource(), LightTexture.FULL_BRIGHT);
 
-            context.getMatrices().pop();
+            context.pose().popPose();
             
             // Flush all rendering
-            context.getVertexConsumers().draw();
+            context.bufferSource().endBatch();
             
             // Restore rendering state
-            DiffuseLighting.disableGuiDepthLighting();
+            com.mojang.blaze3d.platform.Lighting.setupFor3DItems();
             RenderSystem.disableCull();
             RenderSystem.disableDepthTest();
 
         } catch (Exception e) {
             // Ultimate fallback - show indicator text
             try {
-                context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal("[Carriage Preview]").formatted(Formatting.GRAY), 0, 0, 0xAAAAAA);
+                context.drawCenteredString(this.font,
+                    Component.literal("[Carriage Preview]").withStyle(net.minecraft.ChatFormatting.GRAY), 0, 0, 0xAAAAAA);
             } catch (Exception ignored) {
             }
         }
 
-        context.getMatrices().pop();
+        context.pose().popPose();
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        if (amount != 0) {
-            modelScale = Math.max(5.0f, Math.min(100.0f, modelScale + (float) amount * 2.0f));
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (scrollY != 0) {
+            modelScale = Math.max(5.0f, Math.min(100.0f, modelScale + (float) scrollY * 2.0f));
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, amount);
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -327,16 +320,12 @@ public class CarriageManagementScreen extends Screen {
     }
 
     @Override
-    public void close() {
-        if (this.client != null) {
-            this.client.setScreen(parent);
+    public void onClose() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(parent);
         }
     }
 
-    @Override
-    public boolean shouldCloseOnEsc() {
-        return true;
-    }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {

@@ -1,6 +1,6 @@
 package de.ultrabuild.trainsounds.client.config;
 
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Mth;
 
 public class TrainSoundVolumeConfig {
 
@@ -14,9 +14,9 @@ public class TrainSoundVolumeConfig {
     public boolean auxMuted = false;
 
     public void clamp() {
-        dieselVolume = MathHelper.clamp(dieselVolume, 0.0f, 2.0f);
-        electricVolume = MathHelper.clamp(electricVolume, 0.0f, 2.0f);
-        auxVolume = MathHelper.clamp(auxVolume, 0.0f, 2.0f);
+        dieselVolume = Mth.clamp(dieselVolume, 0.0f, 2.0f);
+        electricVolume = Mth.clamp(electricVolume, 0.0f, 2.0f);
+        auxVolume = Mth.clamp(auxVolume, 0.0f, 2.0f);
     }
 
     public float getVolumeMultiplier(String channel) {
@@ -47,7 +47,7 @@ public class TrainSoundVolumeConfig {
     }
 
     public void setChannelVolume(String channel, float volume) {
-        float clamped = MathHelper.clamp(volume, 0.0f, 2.0f);
+        float clamped = Mth.clamp(volume, 0.0f, 2.0f);
         switch (channel) {
             case "diesel" -> dieselVolume = clamped;
             case "electric" -> electricVolume = clamped;
@@ -67,4 +67,3 @@ public class TrainSoundVolumeConfig {
         }
     }
 }
-

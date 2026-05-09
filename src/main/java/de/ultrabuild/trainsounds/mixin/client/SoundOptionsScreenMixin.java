@@ -1,10 +1,10 @@
 package de.ultrabuild.trainsounds.mixin.client;
 
 import de.ultrabuild.trainsounds.client.gui.TrainSoundVolumeScreen;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.option.SoundOptionsScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.options.SoundOptionsScreen;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,14 +21,13 @@ public abstract class SoundOptionsScreenMixin {
         int x = screen.width - buttonWidth - 8;
         int y = screen.height - buttonHeight - 8;
 
-        ((ScreenAccessor) screen).trainsounds$addDrawableChild(ButtonWidget.builder(Text.literal("🔊"), button -> {
-                    MinecraftClient client = MinecraftClient.getInstance();
+        ((ScreenAccessor) screen).trainsounds$addRenderableWidget(Button.builder(Component.literal("🔊"), button -> {
+                    Minecraft client = Minecraft.getInstance();
                     if (client != null) {
                         client.setScreen(new TrainSoundVolumeScreen(screen));
                     }
                 })
-                .dimensions(x, y, buttonWidth, buttonHeight)
+                .bounds(x, y, buttonWidth, buttonHeight)
                 .build());
     }
 }
-

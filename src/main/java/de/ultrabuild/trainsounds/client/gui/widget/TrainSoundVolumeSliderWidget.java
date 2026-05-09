@@ -1,14 +1,14 @@
 package de.ultrabuild.trainsounds.client.gui.widget;
 
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.network.chat.Component;
 
 import java.util.function.BiConsumer;
 
-public class TrainSoundVolumeSliderWidget extends SliderWidget {
+public class TrainSoundVolumeSliderWidget extends AbstractSliderButton {
 
     private final String channel;
-    private final Text channelName;
+    private final Component channelName;
     private final BiConsumer<String, Float> onVolumeChanged;
 
     public TrainSoundVolumeSliderWidget(
@@ -17,11 +17,11 @@ public class TrainSoundVolumeSliderWidget extends SliderWidget {
             int width,
             int height,
             String channel,
-            Text channelName,
+            Component channelName,
             float currentVolume,
             BiConsumer<String, Float> onVolumeChanged
     ) {
-        super(x, y, width, height, Text.empty(), clampNormalized(currentVolume));
+        super(x, y, width, height, Component.empty(), clampNormalized(currentVolume));
         this.channel = channel;
         this.channelName = channelName;
         this.onVolumeChanged = onVolumeChanged;
@@ -35,7 +35,7 @@ public class TrainSoundVolumeSliderWidget extends SliderWidget {
     @Override
     protected void updateMessage() {
         int percent = Math.round(getVolume() * 100.0f);
-        setMessage(Text.translatable("gui.trainsounds.volume_entry", channelName, percent));
+        setMessage(Component.translatable("gui.trainsounds.volume_entry", channelName, percent));
     }
 
     @Override
@@ -48,4 +48,3 @@ public class TrainSoundVolumeSliderWidget extends SliderWidget {
         return Math.max(0.0d, Math.min(1.0d, volume / 2.0f));
     }
 }
-

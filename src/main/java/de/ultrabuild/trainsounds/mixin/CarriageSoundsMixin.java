@@ -9,13 +9,13 @@ import de.mrjulsen.paw.blockentity.PantographBlockEntity;
 import de.ultrabuild.trainsounds.Trainsounds;
 import de.ultrabuild.trainsounds.client.config.TrainSoundVolumeConfigManager;
 import de.ultrabuild.trainsounds.logic.EngineToggleCarrier;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -35,30 +35,32 @@ public abstract class CarriageSoundsMixin {
             method = "tick",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/simibubi/create/content/trains/entity/CarriageSounds;playIfMissing(Lnet/minecraft/client/MinecraftClient;Lcom/simibubi/create/content/trains/entity/CarriageSounds$LoopingSound;Lnet/minecraft/sound/SoundEvent;)Lcom/simibubi/create/content/trains/entity/CarriageSounds$LoopingSound;",
+                    target = "Lcom/simibubi/create/content/trains/entity/CarriageSounds;playIfMissing(Lnet/minecraft/client/Minecraft;Lcom/simibubi/create/content/trains/entity/CarriageSounds$LoopingSound;Lnet/minecraft/sounds/SoundEvent;)Lcom/simibubi/create/content/trains/entity/CarriageSounds$LoopingSound;",
                     ordinal = 0
             ),
-            index = 2
+            index = 2,
+            remap = false
     )
     private SoundEvent trainsounds$muteMinecartLoop(SoundEvent original) {
         if (!trainsounds$shouldUseCustomEngineSound(entity)) {
             return original;
         }
 
-        return SoundEvents.INTENTIONALLY_EMPTY;
+        return SoundEvents.EMPTY;
     }
 
     @Redirect(
             method = "tick",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/simibubi/create/AllSoundEvents$SoundEntry;playAt(Lnet/minecraft/world/World;Lnet/minecraft/util/math/Vec3d;FFZ)V"
-            )
+                    target = "Lcom/simibubi/create/AllSoundEvents$SoundEntry;playAt(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/phys/Vec3;FFZ)V"
+            ),
+            remap = false
     )
     private void trainsounds$muteVanillaSteam(
             AllSoundEvents.SoundEntry soundEntry,
-            World world,
-            Vec3d soundLocation,
+            Level world,
+            Vec3 soundLocation,
             float volume,
             float pitch,
             boolean fade
@@ -70,14 +72,14 @@ public abstract class CarriageSoundsMixin {
         soundEntry.playAt(world, soundLocation, volume, pitch, fade);
     }
 
-    @Inject(method = "tick", at = @At("HEAD"))
+    @Inject(method = "tick", at = @At("HEAD"), remap = false)
     private void trainsounds$playEnginePerDce(Carriage.DimensionalCarriageEntity dce, CallbackInfo ci) {
         CarriageContraptionEntity carriageEntity = trainsounds$resolveTargetCarriage(dce);
         if (carriageEntity == null || !carriageEntity.isAlive()) {
             return;
         }
 
-        World world = carriageEntity.getWorld();
+        Level world = carriageEntity.level();
         if (world == null) {
             return;
         }
@@ -101,41 +103,41 @@ public abstract class CarriageSoundsMixin {
             return;
         }
 
-        if (selectedSound == Trainsounds.ELECTRIC_SOUND_EVENT && !trainsounds$hasLivePantographOnTrain(carriageEntity)) {
+        if (selectedSound == Trainsounds.ELECTRIC_SOUND_EVENT.get() && !trainsounds$hasLivePantographOnTrain(carriageEntity)) {
             return;
         }
 
-        Vec3d soundLocation = carriageEntity.getPos();
+        Vec3 soundLocation = carriageEntity.position();
         double speedPerTick = trainsounds$getTrainSpeedPerTick(carriageEntity);
         float basePitch = trainsounds$dynamicPitchFromTrainSpeed(carriageEntity, 1.0f);
-        float baseVolume = MathHelper.clamp((float) (speedPerTick * 18.0f), 0.20f, 2.5f) * userVolume;
+        float baseVolume = Mth.clamp((float) (speedPerTick * 18.0f), 0.20f, 2.5f) * userVolume;
 
-        long pulseTime = world.getTime();
+        long pulseTime = world.getGameTime();
         int phaseOffset = Math.floorMod(carriageEntity.getId(), 7);
 
         if (speedPerTick >= 0.001) {
             if ((pulseTime + phaseOffset) % 3 == 0) {
-                world.playSound(
+                world.playLocalSound(
                         soundLocation.x,
                         soundLocation.y,
                         soundLocation.z,
                         selectedSound,
-                        SoundCategory.NEUTRAL,
-                        MathHelper.clamp(baseVolume * 1.25f, 0.25f, 3.5f),
-                        MathHelper.clamp(basePitch * 1.05f, 0.5f, 2.5f),
+                        SoundSource.NEUTRAL,
+                        Mth.clamp(baseVolume * 1.25f, 0.25f, 3.5f),
+                        Mth.clamp(basePitch * 1.05f, 0.5f, 2.5f),
                         false
                 );
             }
 
             if ((pulseTime + phaseOffset) % 9 == 0) {
-                world.playSound(
+                world.playLocalSound(
                         soundLocation.x,
                         soundLocation.y,
                         soundLocation.z,
                         selectedSound,
-                        SoundCategory.NEUTRAL,
-                        MathHelper.clamp(baseVolume * 1.9f, 0.35f, 4.0f),
-                        MathHelper.clamp(basePitch * 0.82f, 0.5f, 2.5f),
+                        SoundSource.NEUTRAL,
+                        Mth.clamp(baseVolume * 1.9f, 0.35f, 4.0f),
+                        Mth.clamp(basePitch * 0.82f, 0.5f, 2.5f),
                         false
                 );
             }
@@ -143,12 +145,12 @@ public abstract class CarriageSoundsMixin {
         }
 
         if ((pulseTime + phaseOffset) % 6 == 0) {
-            world.playSound(
+            world.playLocalSound(
                     soundLocation.x,
                     soundLocation.y,
                     soundLocation.z,
                     selectedSound,
-                    SoundCategory.NEUTRAL,
+                    SoundSource.NEUTRAL,
                     0.9f * userVolume,
                     0.45f,
                     false
@@ -198,14 +200,14 @@ public abstract class CarriageSoundsMixin {
     @Unique
     private boolean trainsounds$hasLivePantographOnTrain(CarriageContraptionEntity carriageEntity) {
         Carriage carriage = carriageEntity.getCarriage();
-        World world = carriageEntity.getWorld();
+        Level world = carriageEntity.level();
         if (carriage == null || carriage.train == null || world == null) {
             return trainsounds$hasLivePantographContact(carriageEntity);
         }
 
-        for (CarriageContraptionEntity candidate : world.getEntitiesByClass(
+        for (CarriageContraptionEntity candidate : world.getEntitiesOfClass(
                 CarriageContraptionEntity.class,
-                carriageEntity.getBoundingBox().expand(512.0d),
+                carriageEntity.getBoundingBox().inflate(512.0d),
                 e -> e != null
                         && e.isAlive()
                         && e.getCarriage() != null
@@ -240,19 +242,19 @@ public abstract class CarriageSoundsMixin {
         String icon = carriageEntity.getCarriage().train.icon.getId().getPath();
 
         return switch (icon) {
-            case "electric" -> Trainsounds.ELECTRIC_SOUND_EVENT;
-            case "modern" -> Trainsounds.DIESEL_SOUND_EVENT;
+            case "electric" -> Trainsounds.ELECTRIC_SOUND_EVENT.get();
+            case "modern" -> Trainsounds.DIESEL_SOUND_EVENT.get();
             default -> null;
         };
     }
 
     @Unique
     private String trainsounds$resolveChannel(SoundEvent selectedSound) {
-        if (selectedSound == Trainsounds.DIESEL_SOUND_EVENT) {
+        if (selectedSound == Trainsounds.DIESEL_SOUND_EVENT.get()) {
             return "diesel";
         }
 
-        if (selectedSound == Trainsounds.ELECTRIC_SOUND_EVENT) {
+        if (selectedSound == Trainsounds.ELECTRIC_SOUND_EVENT.get()) {
             return "electric";
         }
 
@@ -263,19 +265,19 @@ public abstract class CarriageSoundsMixin {
     private float trainsounds$dynamicPitchFromTrainSpeed(CarriageContraptionEntity carriageEntity, float basePitch) {
         double speedPerTick = trainsounds$getTrainSpeedPerTick(carriageEntity);
         if (carriageEntity.getCarriage() == null || carriageEntity.getCarriage().train == null) {
-            return MathHelper.clamp(basePitch, 0.5f, 2.5f);
+            return Mth.clamp(basePitch, 0.5f, 2.5f);
         }
 
         float maxSpeedPerTick = Math.max(carriageEntity.getCarriage().train.maxSpeed(), 0.001f);
-        float normalizedSpeed = MathHelper.clamp((float) (speedPerTick / maxSpeedPerTick), 0.0f, 1.0f);
+        float normalizedSpeed = Mth.clamp((float) (speedPerTick / maxSpeedPerTick), 0.0f, 1.0f);
         float curved = (float) Math.pow(normalizedSpeed, 0.65f);
-        float pitchScale = MathHelper.lerp(curved, 0.95f, 1.45f);
-        return MathHelper.clamp(basePitch * pitchScale, 0.5f, 2.5f);
+        float pitchScale = Mth.lerp(curved, 0.95f, 1.45f);
+        return Mth.clamp(basePitch * pitchScale, 0.5f, 2.5f);
     }
 
     @Unique
     private double trainsounds$getTrainSpeedPerTick(CarriageContraptionEntity carriageEntity) {
-        double positionDelta = carriageEntity.getPos().subtract(carriageEntity.getPrevPositionVec()).length();
+        double positionDelta = carriageEntity.position().subtract(new Vec3(carriageEntity.xo, carriageEntity.yo, carriageEntity.zo)).length();
         Carriage carriage = carriageEntity.getCarriage();
         if (carriage != null && carriage.train != null) {
             return Math.max(Math.abs(carriage.train.speed), positionDelta);

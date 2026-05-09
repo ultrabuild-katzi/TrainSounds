@@ -5,83 +5,75 @@ import de.ultrabuild.trainsounds.Trainsounds;
 import de.ultrabuild.trainsounds.client.gui.CarriageManagementScreen;
 import de.ultrabuild.trainsounds.network.TrainSoundsNetworking;
 import de.ultrabuild.trainsounds.network.packet.OpenCarriageGuiS2CPacket;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.event.player.UseEntityCallback;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.world.World;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-@Environment(EnvType.CLIENT)
+@EventBusSubscriber(modid = Trainsounds.MOD_ID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public class TrainSoundsClientHandler {
 
     public static void register() {
-        // Use Fabric's UseEntityCallback for client-side entity interaction
-        UseEntityCallback.EVENT.register(TrainSoundsClientHandler::onUseEntity);
-        
-        // Register S2C packet handler
-        assert TrainSoundsNetworking.OPEN_CARRIAGE_GUI != null;
-        ClientPlayNetworking.registerGlobalReceiver(TrainSoundsNetworking.OPEN_CARRIAGE_GUI, (client, handler, buf, sender) -> {
-            OpenCarriageGuiS2CPacket packet = new OpenCarriageGuiS2CPacket(buf);
-            client.execute(() -> {
-                if (client.world != null) {
-                    Entity entity = client.world.getEntityById(packet.getCarriageEntityId());
-                    if (entity instanceof CarriageContraptionEntity carriage) {
-                        openCarriageManagementScreen(carriage);
-                    }
+        // Registering is handled by EventBusSubscriber
+    }
+
+    @SubscribeEvent
+    public static void onUseEntity(PlayerInteractEvent.EntityInteract event) {
+        Level level = event.getLevel();
+        if (level.isClientSide()) {
+            ItemStack stack = event.getEntity().getItemInHand(event.getHand());
+
+            if (!stack.is(Trainsounds.ENGINE_TOGGLE_ITEM.get())) {
+                return;
+            }
+
+            if (!(event.getTarget() instanceof CarriageContraptionEntity carriageEntity)) {
+                return;
+            }
+
+            openCarriageManagementScreen(carriageEntity);
+            event.setCanceled(true);
+            event.setCancellationResult(InteractionResult.SUCCESS);
+        }
+    }
+
+    public static void handleOpenCarriageGuiPacket(OpenCarriageGuiS2CPacket packet) {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> {
+            if (client.level != null) {
+                Entity entity = client.level.getEntity(packet.getCarriageEntityId());
+                if (entity instanceof CarriageContraptionEntity carriage) {
+                    openCarriageManagementScreen(carriage);
                 }
-            });
+            }
         });
     }
 
-    private static ActionResult onUseEntity(net.minecraft.entity.player.PlayerEntity player, World world, Hand hand, Entity entity, EntityHitResult hitResult) {
-        // Only on client
-        if (world.isClient) {
-            ItemStack stack = player.getStackInHand(hand);
-
-            // Check if holding the engine toggle tool
-            if (!stack.isOf(Trainsounds.ENGINE_TOGGLE_ITEM)) {
-                return ActionResult.PASS;
-            }
-
-            // Check if it's a carriage
-            if (!(entity instanceof CarriageContraptionEntity carriageEntity)) {
-                return ActionResult.PASS;
-            }
-
-            // Open the GUI
-            openCarriageManagementScreen(carriageEntity);
-            return ActionResult.SUCCESS;
-        }
-
-        return ActionResult.PASS;
-    }
-
     public static void openCarriageManagementScreen(CarriageContraptionEntity startCarriage) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        World world = startCarriage.getWorld();
+        Minecraft client = Minecraft.getInstance();
+        Level world = startCarriage.level();
 
         if (world == null) {
             return;
         }
 
-        // Get all carriages in the train
         List<CarriageContraptionEntity> allCarriages = getAllCarriagesInTrain(startCarriage, world);
 
         if (allCarriages.isEmpty()) {
             return;
         }
 
-        // Find the index of the clicked carriage
         int startIndex = 0;
         for (int i = 0; i < allCarriages.size(); i++) {
             if (allCarriages.get(i).getId() == startCarriage.getId()) {
@@ -90,33 +82,27 @@ public class TrainSoundsClientHandler {
             }
         }
 
-        // Open the GUI
-        client.setScreen(new CarriageManagementScreen(client.currentScreen, allCarriages, startIndex));
+        client.setScreen(new CarriageManagementScreen(client.screen, allCarriages, startIndex));
     }
 
-    public static List<CarriageContraptionEntity> getAllCarriagesInTrain(CarriageContraptionEntity startCarriage, World world) {
+    public static List<CarriageContraptionEntity> getAllCarriagesInTrain(CarriageContraptionEntity startCarriage, Level world) {
         List<CarriageContraptionEntity> result = new ArrayList<>();
 
-        // Get the train from the carriage
         com.simibubi.create.content.trains.entity.Carriage carriage = startCarriage.getCarriage();
         if (carriage == null || carriage.train == null) {
-            // If we can't get the train, just return the single carriage
             result.add(startCarriage);
             return result;
         }
 
-        // Get all carriages in the train
-        List<CarriageContraptionEntity> candidates = world.getEntitiesByClass(
+        List<CarriageContraptionEntity> candidates = world.getEntitiesOfClass(
                 CarriageContraptionEntity.class,
-                startCarriage.getBoundingBox().expand(512.0d),
+                startCarriage.getBoundingBox().inflate(512.0d),
                 e -> e != null && e.isAlive() && e.getCarriage() != null && e.getCarriage().train == carriage.train
         );
 
-        // Sort by carriage index
         candidates.sort(Comparator.comparingInt(c -> c.carriageIndex));
         result.addAll(candidates);
 
         return result;
     }
 }
-

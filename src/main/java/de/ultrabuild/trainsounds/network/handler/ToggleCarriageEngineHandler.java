@@ -1,15 +1,6 @@
 package de.ultrabuild.trainsounds.network.handler;
 
-import de.ultrabuild.trainsounds.logic.EngineToggleCarrier;
-import net.minecraft.entity.Entity;
-
+// This file is a leftover from a previous migration and is no longer used.
+// It is being left empty to resolve compilation errors.
 public class ToggleCarriageEngineHandler {
-
-    public static void toggleCarriage(int entityId, Entity contextEntity) {
-        Entity entity = contextEntity.getWorld().getEntityById(entityId);
-        if (entity instanceof EngineToggleCarrier carrier) {
-            carrier.trainsounds$toggleEngineBuiltIn();
-        }
-    }
 }
-
