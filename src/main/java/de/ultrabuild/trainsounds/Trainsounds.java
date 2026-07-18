@@ -3,6 +3,9 @@ package de.ultrabuild.trainsounds;
 import de.ultrabuild.trainsounds.item.EngineToggleItem;
 import de.ultrabuild.trainsounds.logic.TrainEngineToggleHandler;
 import de.ultrabuild.trainsounds.network.TrainSoundsNetworking;
+import de.ultrabuild.trainsounds.schedule.StationModeRequestInstruction;
+import com.simibubi.create.Create;
+import net.createmod.catnip.data.Pair;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
@@ -11,6 +14,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
+import com.simibubi.create.content.trains.schedule.Schedule;
 
 public class Trainsounds implements ModInitializer {
 
@@ -29,6 +33,8 @@ public class Trainsounds implements ModInitializer {
         Registry.register(Registries.SOUND_EVENT, DIESEL_SOUND_ID, DIESEL_SOUND_EVENT);
         Registry.register(Registries.ITEM, ENGINE_TOGGLE_ITEM_ID, ENGINE_TOGGLE_ITEM);
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> entries.add(ENGINE_TOGGLE_ITEM));
+        Schedule.INSTRUCTION_TYPES.add(Pair.of(Create.asResource("station_mode_request"), StationModeRequestInstruction::new));
+        Schedule.INSTRUCTION_TYPES.add(Pair.of(Identifier.of(MOD_ID, "station_mode_request"), StationModeRequestInstruction::new));
         TrainEngineToggleHandler.register();
         TrainSoundsNetworking.register();
     }

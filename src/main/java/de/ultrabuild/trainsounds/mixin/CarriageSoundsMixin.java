@@ -25,11 +25,19 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.Objects;
+
 @Mixin(CarriageSounds.class)
 public abstract class CarriageSoundsMixin {
 
     @Shadow
     CarriageContraptionEntity entity;
+
+    @Shadow
+    public abstract void stop();
+
+    @Unique
+    private String trainsounds$lastEngineVariant;
 
     @ModifyArg(
             method = "tick",
@@ -75,6 +83,12 @@ public abstract class CarriageSoundsMixin {
         CarriageContraptionEntity carriageEntity = trainsounds$resolveTargetCarriage(dce);
         if (carriageEntity == null || !carriageEntity.isAlive()) {
             return;
+        }
+
+        String engineVariant = trainsounds$getEngineVariant(carriageEntity);
+        if (!Objects.equals(trainsounds$lastEngineVariant, engineVariant)) {
+            stop();
+            trainsounds$lastEngineVariant = engineVariant;
         }
 
         World world = carriageEntity.getWorld();
@@ -221,29 +235,35 @@ public abstract class CarriageSoundsMixin {
 
     @Unique
     private boolean trainsounds$shouldUseCustomEngineSound(CarriageContraptionEntity carriageEntity) {
-        if (carriageEntity == null || carriageEntity.getCarriage() == null || carriageEntity.getCarriage().train == null
-                || carriageEntity.getCarriage().train.icon == null) {
+        String icon = trainsounds$getEngineVariant(carriageEntity);
+        if (icon == null) {
             return false;
         }
-
-        String icon = carriageEntity.getCarriage().train.icon.getId().getPath();
         return "electric".equals(icon) || "modern".equals(icon);
     }
 
     @Unique
     private SoundEvent trainsounds$selectEngineSound(CarriageContraptionEntity carriageEntity) {
-        if (carriageEntity == null || carriageEntity.getCarriage() == null || carriageEntity.getCarriage().train == null
-                || carriageEntity.getCarriage().train.icon == null) {
+        String icon = trainsounds$getEngineVariant(carriageEntity);
+        if (icon == null) {
             return null;
         }
-
-        String icon = carriageEntity.getCarriage().train.icon.getId().getPath();
 
         return switch (icon) {
             case "electric" -> Trainsounds.ELECTRIC_SOUND_EVENT;
             case "modern" -> Trainsounds.DIESEL_SOUND_EVENT;
             default -> null;
         };
+    }
+
+    @Unique
+    private String trainsounds$getEngineVariant(CarriageContraptionEntity carriageEntity) {
+        if (carriageEntity == null || carriageEntity.getCarriage() == null || carriageEntity.getCarriage().train == null
+                || carriageEntity.getCarriage().train.icon == null) {
+            return null;
+        }
+
+        return carriageEntity.getCarriage().train.icon.getId().getPath();
     }
 
     @Unique

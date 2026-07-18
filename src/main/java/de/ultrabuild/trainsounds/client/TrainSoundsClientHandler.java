@@ -9,13 +9,16 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.world.World;
+import de.ultrabuild.trainsounds.logic.TrainEngineToggleHandler;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,6 +30,7 @@ public class TrainSoundsClientHandler {
     public static void register() {
         // Use Fabric's UseEntityCallback for client-side entity interaction
         UseEntityCallback.EVENT.register(TrainSoundsClientHandler::onUseEntity);
+        UseItemCallback.EVENT.register(TrainSoundsClientHandler::onUseItem);
         
         // Register S2C packet handler
         assert TrainSoundsNetworking.OPEN_CARRIAGE_GUI != null;
@@ -64,6 +68,22 @@ public class TrainSoundsClientHandler {
         }
 
         return ActionResult.PASS;
+    }
+
+    private static TypedActionResult<ItemStack> onUseItem(net.minecraft.entity.player.PlayerEntity player, World world, Hand hand) {
+        if (world.isClient) {
+            ItemStack stack = player.getStackInHand(hand);
+            if (!stack.isOf(Trainsounds.ENGINE_TOGGLE_ITEM)) {
+                return TypedActionResult.pass(stack);
+            }
+
+            CarriageContraptionEntity target = TrainEngineToggleHandler.findCarriageInFront(player, world, 8.0d);
+            if (target != null) {
+                openCarriageManagementScreen(target);
+                return TypedActionResult.success(stack);
+            }
+        }
+        return TypedActionResult.pass(player.getStackInHand(hand));
     }
 
     public static void openCarriageManagementScreen(CarriageContraptionEntity startCarriage) {

@@ -221,15 +221,20 @@ public class CarriageManagementScreen extends Screen {
             // Apply rotation
             context.getMatrices().multiply(RotationAxis.POSITIVE_X.rotationDegrees(modelRotationX));
             context.getMatrices().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(modelRotationY));
-            
-            // Render the blocks and block entities of the contraption
-            assert this.client != null;
+
+            // Render the blocks of the contraption manually since the entity renderer
+            // might not render them correctly in the GUI context.
             if (carriage.getContraption() != null) {
                 Contraption contraption = carriage.getContraption();
-
-                // Render blocks
                 for (Map.Entry<BlockPos, StructureTemplate.StructureBlockInfo> entry : contraption.getBlocks().entrySet()) {
                     BlockPos localPos = entry.getKey();
+                    
+                    // Skip blocks that have block entities, as they are likely rendered 
+                    // by the CarriageContraptionEntityRenderer to avoid doubling.
+                    if (contraption.getBlockEntityClientSide(localPos) != null) {
+                        continue;
+                    }
+
                     StructureTemplate.StructureBlockInfo info = entry.getValue();
                     BlockState blockState = info.state();
 
@@ -240,28 +245,31 @@ public class CarriageManagementScreen extends Screen {
                         net.minecraft.client.render.OverlayTexture.DEFAULT_UV);
                     context.getMatrices().pop();
                 }
-
-                // Render block entities
-                for (BlockPos localPos : contraption.getBlocks().keySet()) {
-                    BlockEntity blockEntity = contraption.getBlockEntityClientSide(localPos);
-                    if (blockEntity != null) {
-                        var renderer = this.client.getBlockEntityRenderDispatcher().get(blockEntity);
-                        if (renderer != null) {
-                            context.getMatrices().push();
-                            context.getMatrices().translate(localPos.getX(), localPos.getY(), localPos.getZ());
-                            renderer.render(blockEntity, delta, context.getMatrices(), context.getVertexConsumers(),
-                                net.minecraft.client.render.LightmapTextureManager.MAX_LIGHT_COORDINATE,
-                                net.minecraft.client.render.OverlayTexture.DEFAULT_UV);
-                            context.getMatrices().pop();
-                        }
-                    }
-                }
             }
-
-            // Render the entity (this includes bogeys in CarriageContraptionEntity)
+            
+            // Render the entity (this includes bogeys and potentially block entities in CarriageContraptionEntity)
             EntityRenderDispatcher dispatcher = this.client.getEntityRenderDispatcher();
+            
+            // We need to handle the rotation carefully.
+            // Create's CarriageContraptionEntityRenderer uses the entity's yaw/pitch.
+            // Since we want to control rotation via the GUI sliders, we can temporarily set the entity's yaw.
+            float originalYaw = carriage.getYaw();
+            float originalPrevYaw = carriage.prevYaw;
+            float originalPitch = carriage.getPitch();
+            float originalPrevPitch = carriage.prevPitch;
+            
+            carriage.setYaw(0);
+            carriage.prevYaw = 0;
+            carriage.setPitch(0);
+            carriage.prevPitch = 0;
+
             dispatcher.render(carriage, 0, 0, 0, 0, delta, context.getMatrices(),
                 context.getVertexConsumers(), net.minecraft.client.render.LightmapTextureManager.MAX_LIGHT_COORDINATE);
+            
+            carriage.setYaw(originalYaw);
+            carriage.prevYaw = originalPrevYaw;
+            carriage.setPitch(originalPitch);
+            carriage.prevPitch = originalPrevPitch;
 
             context.getMatrices().pop();
             

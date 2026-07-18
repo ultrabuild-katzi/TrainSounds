@@ -152,11 +152,13 @@ public final class TrainEngineToggleHandler {
         ), true);
     }
 
-    private static CarriageContraptionEntity findCarriageInFront(PlayerEntity player, World world, double maxDistance) {
+    public static CarriageContraptionEntity findCarriageInFront(PlayerEntity player, World world, double maxDistance) {
         Vec3d eyePos = player.getEyePos();
         Vec3d lookDir = player.getRotationVec(1.0f).normalize();
         Vec3d rayEnd = eyePos.add(lookDir.multiply(maxDistance));
-        Box searchBox = player.getBoundingBox().expand(maxDistance);
+        
+        // Use a generous search box to catch long carriages
+        Box searchBox = player.getBoundingBox().expand(maxDistance + 5.0);
 
         List<CarriageContraptionEntity> candidates = world.getEntitiesByClass(
                 CarriageContraptionEntity.class,
@@ -166,14 +168,33 @@ public final class TrainEngineToggleHandler {
 
         return candidates.stream()
                 .filter(entity -> {
-                    Vec3d toEntity = entity.getPos().subtract(eyePos);
-                    double forwardDistance = toEntity.dotProduct(lookDir);
-                    return forwardDistance > 0 && forwardDistance <= maxDistance;
+                    // Check if the ray hits a generous AABB
+                    Box generousBox = entity.getBoundingBox().expand(1.5);
+                    if (generousBox.raycast(eyePos, rayEnd).isPresent()) {
+                        return true;
+                    }
+
+                    // Also check if the ray passes near the center of the entity
+                    // This is helpful if the AABB is somehow messed up or very thin
+                    Vec3d toCenter = generousBox.getCenter().subtract(eyePos);
+                    double dot = toCenter.dotProduct(lookDir);
+                    if (dot > 0 && dot <= maxDistance + 2.0) {
+                        Vec3d projection = lookDir.multiply(dot);
+                        double distToRaySq = toCenter.subtract(projection).lengthSquared();
+                        return distToRaySq < 16.0; // Within 4 blocks of center line
+                    }
+                    return false;
                 })
-                .filter(entity -> entity.getBoundingBox().expand(0.25f).raycast(eyePos, rayEnd).isPresent())
                 .min(Comparator.comparingDouble(entity -> {
-                    Vec3d hitPos = entity.getBoundingBox().expand(0.25f).raycast(eyePos, rayEnd).orElse(entity.getPos());
-                    return eyePos.squaredDistanceTo(hitPos);
+                    Box box = entity.getBoundingBox().expand(1.5);
+                    var hit = box.raycast(eyePos, rayEnd);
+                    if (hit.isPresent()) {
+                        return eyePos.squaredDistanceTo(hit.get());
+                    }
+
+                    Vec3d toCenter = box.getCenter().subtract(eyePos);
+                    double dot = toCenter.dotProduct(lookDir);
+                    return eyePos.squaredDistanceTo(eyePos.add(lookDir.multiply(dot)));
                 }))
                 .orElse(null);
     }

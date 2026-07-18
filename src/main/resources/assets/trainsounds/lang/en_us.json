@@ -11,6 +11,19 @@
   "gui.trainsounds.carriage_info": "Carriage %s of %s",
   "gui.trainsounds.engine_toggle": "Engine: %s",
   "gui.trainsounds.engine_on": "ON",
-  "gui.trainsounds.engine_off": "OFF"
+  "gui.trainsounds.engine_off": "OFF",
+  "schedule.condition.station_mode.scheduled": "Station mode",
+  "schedule.condition.station_mode.status": "Switching to %s while waiting: %s",
+  "schedule.condition.station_mode.mode": "Train mode",
+  "schedule.condition.station_mode.mode.traditional": "Traditional",
+  "schedule.condition.station_mode.mode.electric": "Electric",
+  "schedule.condition.station_mode.mode.modern": "Modern",
+  "schedule.instruction.station_mode_request.scheduled": "Station mode request",
+  "schedule.instruction.station_mode_request.status": "Changing to %s after %s",
+  "schedule.instruction.station_mode_request.delay": "Delay",
+  "schedule.instruction.station_mode_request.tooltip": "Drive to the station, wait, then switch the train mode.",
+  "schedule.instruction.station_mode_request.tooltip_1": "Scroll the icon to change the target mode.",
+  "schedule.instruction.station_mode_request.mode.traditional": "Traditional",
+  "schedule.instruction.station_mode_request.mode.electric": "Electric",
+  "schedule.instruction.station_mode_request.mode.modern": "Modern"
 }
-
